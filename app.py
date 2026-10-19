@@ -9,7 +9,7 @@ from google.genai import types
 st.set_page_config(page_title="বাংলা মডেল টেস্ট জেনারেটর", page_icon="📝", layout="wide")
 
 # জেমিনি এপিআই কি সেটআপ
-API_KEY = "AIzaSyAR5F173xcPrrCw5yJnfoRvMar20T8q6vs"
+API_KEY = "AQ.Ab8RN6K4tczxFSpsd09Fw6auhoyXNidtXLp3o2-Ch8bsxY9Ifg"
 
 # সেশন স্টেটে প্রশ্ন ও ইউজার অ্যানসার সংরক্ষণের জন্য
 if "questions" not in st.session_state:
