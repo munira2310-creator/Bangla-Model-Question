@@ -66,9 +66,9 @@ if generate_btn:
                     {extracted_text[:25000]}
                     """
                     
-                    # বর্তমান সচল ও দ্রুতগতির মডেল ব্যবহার করা হলো
+                    # গ্রকের বর্তমান সচল ও অফিশিয়াল মডেল ব্যবহার করা হলো
                     completion = client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
+                        model="openai/gpt-oss-20b",
                         messages=[
                             {"role": "system", "content": "You are a helpful assistant that outputs only valid JSON."},
                             {"role": "user", "content": prompt}
