@@ -1,14 +1,13 @@
 import json
 import streamlit as st
-from google import genai
-from google.genai import types
+from groq import Groq
 from pypdf import PdfReader
 
 # পেজের লেআউট সেটআপ
 st.set_page_config(page_title="বাংলা মডেল টেস্ট জেনারেটর", page_icon="📝", layout="wide")
 
-# আপনার দেওয়া এপিআই কি/টোকেন
-API_KEY = "AQ.Ab8RN6KFuqvBJhTX7LWo-jNUxXCrynxabiJE9tNEkeXWR35kkw"
+# আপনার Groq API Key এখানে সেট করা হলো
+GROQ_API_KEY = "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"
 
 # সেশন স্টেটে প্রশ্ন ও সাবমিশন ট্র্যাক করা
 if "questions" not in st.session_state:
@@ -28,15 +27,15 @@ with st.sidebar:
     
     generate_btn = st.button("🚀 নতুন প্রশ্ন তৈরি করুন", type="primary")
 
-# নতুন প্রশ্ন জেনারেট করার লজিক (pypdf দিয়ে সরাসরি টেক্সট রিড করা)
+# নতুন প্রশ্ন জেনারেট করার লজিক
 if generate_btn:
     if uploaded_file is None:
         st.sidebar.error("দয়া করে প্রথমে একটি পিডিএফ ফাইল আপলোড করুন।")
     else:
         st.session_state.submitted = False
-        with st.spinner("পিডিএফ ফাইল থেকে টেক্সট বিশ্লেষণ করে প্রশ্ন তৈরি করা হচ্ছে... একটু অপেক্ষা করুন।"):
+        with st.spinner("পিডিএফ ফাইল বিশ্লেষণ করে চমৎকার প্রশ্ন তৈরি করা হচ্ছে... একটু অপেক্ষা করুন।"):
             try:
-                # স্থানীয়ভাবে পিডিএফ প্রসেসিং (FileService সমস্যা এড়াতে)
+                # স্থানীয়ভাবে পিডিএফ প্রসেসিং
                 reader = PdfReader(uploaded_file)
                 extracted_text = ""
                 for page in reader.pages:
@@ -45,16 +44,16 @@ if generate_btn:
                         extracted_text += page_text + "\n"
                 
                 if not extracted_text.strip():
-                    st.error("দুঃখিত, এই পিডিএফ ফাইল থেকে লেখা পড়া যায়নি। অন্য কোনো স্পষ্ট পিডিএফ আপলোড করে চেষ্টা করুন।")
+                    st.error("দুঃখিত, এই পিডিএফ ফাইল থেকে লেখা পড়া যায়নি। অন্য কোনো স্পষ্ট পিডিএফ আপলোড করুন।")
                 else:
-                    client = genai.Client(api_key=API_KEY)
+                    client = Groq(api_key=GROQ_API_KEY)
                     
                     prompt = f"""
                     তুমি একজন অভিজ্ঞ বাংলা শিক্ষক। নিচের পাঠ্যবইয়ের কনটেন্ট ভালোভাবে বিশ্লেষণ করো। 
                     এর থেকে ঠিক {num_questions}টি অত্যন্ত মানসম্মত এবং বোর্ড পরীক্ষার আদলে বহুনির্বাচনি প্রশ্ন (MCQ) তৈরি করো।
                     প্রতিটি প্রশ্নের ঠিক ৪টি অপশন থাকবে।
                     
-                    আউটপুটটি বিশুদ্ধ JSON ফরম্যাটে হতে হবে হুবহু এই স্ট্রাকচারে:
+                    আউটপুটটি অবশ্যই একটি ভ্যালিড JSON অ্যারে (JSON Array) হতে হবে, যার স্ট্রাকচার হবে হুবহু নিচে দেওয়া ফরম্যাটে:
                     [
                       {{
                         "question": "প্রশ্ন এখানে?",
@@ -64,19 +63,34 @@ if generate_btn:
                     ]
                     
                     পাঠ্যবইয়ের অংশ:
-                    {extracted_text[:35000]}
+                    {extracted_text[:30000]}
                     """
                     
-                    response = client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            response_mime_type="application/json",
-                            temperature=0.7
-                        )
+                    completion = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": "You are a helpful assistant that outputs only valid JSON."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        response_format={"type": "json_object"},
+                        temperature=0.7
                     )
                     
-                    st.session_state.questions = json.loads(response.text)
+                    # রেসপন্স থেকে JSON পার্স করা
+                    res_content = completion.choices[0].message.content
+                    data = json.loads(res_content)
+                    
+                    # ডেটা ফরম্যাট অ্যাডজাস্ট করা
+                    if isinstance(data, dict):
+                        for key, val in data.items():
+                            if isinstance(val, list):
+                                st.session_state.questions = val
+                                break
+                        if not st.session_state.questions:
+                            st.session_state.questions = list(data.values())[0]
+                    elif isinstance(data, list):
+                        st.session_state.questions = data
+                        
                     st.success("সফলভাবে নতুন প্রশ্ন সেট তৈরি করা হয়েছে!")
             except Exception as e:
                 st.error(f"ত্রুটি ঘটেছে: {e}")
@@ -105,7 +119,7 @@ if st.session_state.questions:
         if submit_exam:
             st.session_state.submitted = True
 
-    # পরীক্ষা সাবমিট করার পর স্বয়ংক্রিয় ফলাফল ও উত্তরমালা
+    # পরীক্ষা সাবমিট করার পর ফলাফল ও উত্তরমালা
     if st.session_state.submitted:
         st.divider()
         st.markdown("### 📊 পরীক্ষার ফলাফল ও উত্তরমালা")
