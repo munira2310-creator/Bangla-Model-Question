@@ -62,7 +62,7 @@ if generate_btn:
                 """
                 
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.8-flash',
                     contents=[uploaded_pdf, prompt],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
