@@ -63,12 +63,12 @@ if generate_btn:
                     ]
                     
                     পাঠ্যবইয়ের অংশ:
-                    {extracted_text[:30000]}
+                    {extracted_text[:25000]}
                     """
                     
-                    # মডেলের নাম পরিবর্তন করে llama-3.1-70b-versatile করা হয়েছে
+                    # বর্তমান সচল ও দ্রুতগতির মডেল ব্যবহার করা হলো
                     completion = client.chat.completions.create(
-                        model="llama-3.1-70b-versatile",
+                        model="llama-3.1-8b-instant",
                         messages=[
                             {"role": "system", "content": "You are a helpful assistant that outputs only valid JSON."},
                             {"role": "user", "content": prompt}
