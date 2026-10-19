@@ -66,8 +66,9 @@ if generate_btn:
                     {extracted_text[:30000]}
                     """
                     
+                    # মডেলের নাম পরিবর্তন করে llama-3.1-70b-versatile করা হয়েছে
                     completion = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
+                        model="llama-3.1-70b-versatile",
                         messages=[
                             {"role": "system", "content": "You are a helpful assistant that outputs only valid JSON."},
                             {"role": "user", "content": prompt}
