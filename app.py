@@ -1,6 +1,6 @@
 import base64
 import json
-import fitz  # PyMuPDF (স্ক্যান করা পিডিএফ পড়ার জন্য)
+import fitz  # PyMuPDF
 import streamlit as st
 from groq import Groq
 
@@ -17,45 +17,45 @@ if "submitted" not in st.session_state:
     st.session_state.submitted = False
 
 st.title("📝 আপনার আপলোড করা পিডিএফ থেকে ইন্টারেক্টিভ মডেল টেস্ট")
-st.markdown("আপনার স্ক্যান করা বা ছবির পিডিএফ ফাইল আপলোড করুন—এআই সরাসরি আপনার বইয়ের পাতা দেখে প্রশ্ন তৈরি করবে।")
+st.markdown("আপনার স্ক্যান করা পিডিএফ ফাইল আপলোড করুন—এআই সরাসরি পাতাগুলো বিশ্লেষণ করে নিখুঁত প্রশ্ন তৈরি করবে।")
 
 # সাইডবারে ফাইল আপলোড ও কন্ট্রোল
 with st.sidebar:
     st.header("⚙️ সেটিংস ও ফাইল")
-    uploaded_file = st.file_uploader("আপনার আসল বাংলা পাঠ্যবইয়ের PDF আপলোড করুন", type=[".pdf"])
+    uploaded_file = st.file_uploader("আপনার বাংলা পাঠ্যবইয়ের PDF আপলোড করুন", type=[".pdf"])
     
     num_questions = st.slider("প্রশ্নের সংখ্যা নির্বাচন করুন", min_value=5, max_value=20, value=10, step=5)
     
     generate_btn = st.button("🚀 পিডিএফ থেকে প্রশ্ন তৈরি করুন", type="primary")
 
-# নতুন প্রশ্ন জেনারেট করার লজিক (ভিশন এআই ব্যবহার করে সরাসরি পিডিএফ পেজ পড়া)
+# নতুন প্রশ্ন জেনারেট করার লজিক (অপ্টিমাইজড ভিশন এআই)
 if generate_btn:
     if uploaded_file is None:
         st.sidebar.error("দয়া করে প্রথমে আপনার পিডিএফ ফাইল আপলোড করুন।")
     else:
         st.session_state.submitted = False
-        with st.spinner("আপনার আপলোড করা পিডিএফ পাতাগুলো স্ক্যান ও বিশ্লেষণ করে নিখুঁত প্রশ্ন তৈরি করা হচ্ছে... একটু অপেক্ষা করুন।"):
+        with st.spinner("পিডিএফ ফাইল অপ্টিমাইজ ও স্ক্যান করে প্রশ্ন তৈরি করা হচ্ছে... একটু অপেক্ষা করুন।"):
             try:
-                # PyMuPDF দিয়ে পিডিএফ পেজগুলোকে ইমেজ ফরম্যাটে রূপান্তর করা
+                # PyMuPDF দিয়ে পিডিএফ পেজগুলোকে অপ্টিমাইজড ইমেজ করা (সাইজ ছোট রাখতে)
                 doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                 image_contents = []
                 
-                # ফাইলের প্রথম ৮টি পেজ পর্যন্ত স্ক্যান করা হবে (যাতে সব কন্টেন্ট কাভার হয়)
-                max_pages = min(len(doc), 8)
+                # সাইজ এরর এড়াতে প্রথম ২-৩টি পেজ টার্গেট করা হলো
+                max_pages = min(len(doc), 3)
                 for page_num in range(max_pages):
                     page = doc[page_num]
-                    pix = page.get_pixmap(dpi=150) # হাই কোয়ালিটি ইমেজ
-                    img_bytes = pix.tobytes("png")
+                    pix = page.get_pixmap(dpi=96)  # কম রেজোলিউশন কিন্তু স্পষ্ট
+                    # JPEG ফরম্যাটে কম্প্রেস করা যাতে 413 error না আসে
+                    img_bytes = pix.tobytes("jpeg", jpg_quality=65)
                     base64_img = base64.b64encode(img_bytes).decode('utf-8')
                     image_contents.append(base64_img)
                 
                 client = Groq(api_key=GROQ_API_KEY)
                 
-                # ভিশন মডেলের জন্য মেসেজ ফরম্যাট তৈরি
                 messages_content = [
                     {
                         "type": "text",
-                        "text": f"""তুমি একজন অভিজ্ঞ বাংলা শিক্ষক। সংযুক্ত পিডিএফ পাতার ছবিগুলো খুব ভালোভাবে দেখে এই পাঠ্যবইয়ের কন্টেন্ট থেকে ঠিক {num_questions}টি অত্যন্ত মানসম্মত এবং বোর্ড পরীক্ষার আদলে বহুনির্বাচনি প্রশ্ন (MCQ) তৈরি করো।
+                        "text": f"""তুমি একজন অভিজ্ঞ বাংলা শিক্ষক। সংযুক্ত পিডিএফ পাতার ছবিগুলো দেখে এই কন্টেন্ট থেকে ঠিক {num_questions}টি অত্যন্ত মানসম্মত এবং বোর্ড পরীক্ষার আদলে বহুনির্বাচনি প্রশ্ন (MCQ) তৈরি করো।
                         প্রতিটি প্রশ্নের ঠিক ৪টি অপশন থাকবে।
                         
                         আউটপুটটি অবশ্যই একটি ভ্যালিড JSON অ্যারে (JSON Array) হতে হবে, যার স্ট্রাকচার হবে হুবহু নিচে দেওয়া ফরম্যাটে:
@@ -69,16 +69,14 @@ if generate_btn:
                     }
                 ]
                 
-                # পিডিএফের ছবিগুলো প্রম্পটে যুক্ত করা
                 for b64 in image_contents:
                     messages_content.append({
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/png;base64,{b64}"
+                            "url": f"data:image/jpeg;base64,{b64}"
                         }
                     })
                 
-                # গ্রকের শক্তিশালী ভিশন মডেল ব্যবহার করা হলো
                 completion = client.chat.completions.create(
                     model="llama-3.2-11b-vision-preview",
                     messages=[
@@ -93,7 +91,6 @@ if generate_btn:
                 
                 res_content = completion.choices[0].message.content
                 
-                # JSON ক্লিনিং ও পার্সিং
                 if "```json" in res_content:
                     res_content = res_content.split("```json")[1].split("```")[0]
                 elif "```" in res_content:
@@ -165,4 +162,4 @@ if st.session_state.questions:
         st.markdown(f"### মোট প্রাপ্ত নম্বর: **{score} / {total}**")
 
 else:
-    st.warning("পরীক্ষা শুরু করতে বাম পাশের সাইডবার থেকে আপনার আসল বাংলা বইয়ের পিডিএফ ফাইল আপলোড করে 'পিডিএফ থেকে প্রশ্ন তৈরি করুন' বাটনে ক্লিক করুন।")
+    st.warning("পরীক্ষা শুরু করতে বাম পাশের সাইডবার থেকে আপনার বাংলা বইয়ের পিডিএফ ফাইল আপলোড করে 'পিডিএফ থেকে প্রশ্ন তৈরি করুন' বাটনে ক্লিক করুন।")
